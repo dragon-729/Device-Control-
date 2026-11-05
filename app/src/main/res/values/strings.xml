@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DroidLink</string>
+    <string name="accessibility_service_label">DroidLink Remote Control</string>
+    <string name="accessibility_service_description">Lets a device you have explicitly paired and approved tap, swipe and type on this device during an active DroidLink session. It is never used outside an approved session, never reads passwords and never collects what you type. You can turn it off at any time.</string>
+    <string name="notif_channel_session">Remote session</string>
+    <string name="notif_channel_session_desc">Shown for as long as someone is connected to this device.</string>
+    <string name="notif_channel_events">Pairing and session requests</string>
+    <string name="notif_title_session">Remote session active</string>
+    <string name="notif_action_disconnect">Disconnect</string>
+</resources>
