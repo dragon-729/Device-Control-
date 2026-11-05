@@ -1,0 +1,87 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: the default token can only read the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Required files present
+        run: python scripts/validate_structure.py
+      - name: Kotlin static sanity checks
+        run: python scripts/check_kotlin_static.py
+
+  format:
+    name: Code formatting (ktlint)
+    runs-on: ubuntu-latest
+    # Advisory until the codebase has been formatted once with `ktlint -F`; then remove continue-on-error.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ktlint
+        run: |
+          curl -sSLO https://github.com/pinterest/ktlint/releases/download/1.3.1/ktlint
+          chmod +x ktlint
+      - name: Check formatting
+        run: ./ktlint "app/src/**/*.kt"
+
+  build:
+    name: Build, test, lint
+    runs-on: ubuntu-latest
+    needs: validate
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Compile Kotlin
+        run: gradle :app:compileDebugKotlin --stacktrace
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+      - name: Android lint
+        run: gradle :app:lintDebug --stacktrace
+      - name: Assemble debug APK
+        run: gradle :app:assembleDebug --stacktrace
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: droidlink-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: |
+            app/build/reports/tests/
+            app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "### Android build FAILED" >> "$GITHUB_STEP_SUMMARY"
+          echo "Open the logs above and download the 'android-reports' artifact for test and lint details." >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=Android build failed::See the step summary and the android-reports artifact."
